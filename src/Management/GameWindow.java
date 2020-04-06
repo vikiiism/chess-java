@@ -54,6 +54,28 @@ public class GameWindow {
         gameWindow.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
 
+    public void checkmateOccurred(int c) {
+        String winner;
+        if (c == 0) {
+            winner = "White";
+        } else {
+            winner = "Black";
+        }
+
+        if (timer != null) timer.stop();
+        int n = JOptionPane.showConfirmDialog(
+                gameWindow, String.format(
+                        "%s wins by checkmate! Set up a new game? \n", winner) +
+                        "Choosing \"No\" lets you look at the final situation.",
+                String.format("%s wins!", winner),
+                JOptionPane.YES_NO_OPTION);
+
+        if (n == JOptionPane.YES_OPTION) {
+            SwingUtilities.invokeLater(new StartMenuEngine());
+            gameWindow.dispose();
+        }
+    }
+
 // Helper function to create data panel
 
     private JPanel gameDataPanel(final String blackName, final String whiteName, final int hh, final int mm, final int ss) {
@@ -88,50 +110,11 @@ public class GameWindow {
 
         if (!(hh == 0 && mm == 0 && ss == 0)) {
             timer = new Timer(1000, null);
-            timer.addActionListener(e -> {
-                boolean turn = board.getTurn();
-
-                if (turn) {
-                    whiteClock.decr();
-                    wTime.setText(whiteClock.getTime());
-
-
-                    if (whiteClock.outOfTime()) {
-                        timer.stop();
-                        int answer = JOptionPane.showConfirmDialog(
-                                gameWindow, blackName + " wins by time! Play a new game? \n" +
-                                        "Choosing \"No\" quits the game.",
-                                blackName + " wins!",
-                                JOptionPane.YES_NO_OPTION);
-
-                        if (answer == JOptionPane.YES_OPTION) {
-                            new GameWindow(blackName, whiteName, hh, mm, ss);
-                        }
-                        gameWindow.dispose();
-                    }
-                } else {
-                    blackClock.decr();
-                    bTime.setText(blackClock.getTime());
-
-                    if (blackClock.outOfTime()) {
-                        timer.stop();
-                        int n = JOptionPane.showConfirmDialog(
-                                gameWindow, whiteName + " wins by time! Play a new game? \n" +
-                                        "Choosing \"No\" quits the game.",
-                                whiteName + " wins!",
-                                JOptionPane.YES_NO_OPTION);
-
-                        if (n == JOptionPane.YES_OPTION) {
-                            new GameWindow(blackName, whiteName, hh, mm, ss);
-                        }
-                        gameWindow.dispose();
-                    }
-                }
-            });
+            timer.addActionListener(e -> adjustClock(blackName, whiteName, hh, mm, ss, wTime));
             timer.start();
         } else {
-            wTime.setText("Untimed game");
-            bTime.setText("Untimed game");
+            wTime.setText("Out of time game");
+            bTime.setText("Out of time game");
         }
 
         gameData.add(wTime);
@@ -140,6 +123,38 @@ public class GameWindow {
         gameData.setPreferredSize(gameData.getMinimumSize());
 
         return gameData;
+    }
+
+    private void adjustClock(String blackName, String whiteName, int hh, int mm, int ss, JLabel wTime) {
+        boolean turn = board.getTurn();
+        Clock movingPlayerClock;
+        String otherPlayerName;
+
+        if (turn) {
+            movingPlayerClock = whiteClock;
+            otherPlayerName = blackName;
+
+        } else {
+            movingPlayerClock = blackClock;
+            otherPlayerName = whiteName;
+        }
+
+        movingPlayerClock.decr();
+        wTime.setText(movingPlayerClock.getTime());
+
+        if (movingPlayerClock.outOfTime()) {
+            timer.stop();
+            int answer = JOptionPane.showConfirmDialog(
+                    gameWindow, otherPlayerName + " wins by time! Play a new game? \n" +
+                            "Choosing \"No\" quits the game.",
+                    otherPlayerName + " wins!",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (answer == JOptionPane.YES_OPTION) {
+                new GameWindow(blackName, whiteName, hh, mm, ss);
+            }
+            gameWindow.dispose();
+        }
     }
 
     private JPanel buttons() {
@@ -191,33 +206,4 @@ public class GameWindow {
         return buttons;
     }
 
-    public void checkmateOccurred(int c) {
-        if (c == 0) {
-            if (timer != null) timer.stop();
-            int n = JOptionPane.showConfirmDialog(
-                    gameWindow,
-                    "White wins by checkmate! Set up a new game? \n" +
-                            "Choosing \"No\" lets you look at the final situation.",
-                    "White wins!",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (n == JOptionPane.YES_OPTION) {
-                SwingUtilities.invokeLater(new StartMenuEngine());
-                gameWindow.dispose();
-            }
-        } else {
-            if (timer != null) timer.stop();
-            int n = JOptionPane.showConfirmDialog(
-                    gameWindow,
-                    "Black wins by checkmate! Set up a new game? \n" +
-                            "Choosing \"No\" lets you look at the final situation.",
-                    "Black wins!",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (n == JOptionPane.YES_OPTION) {
-                SwingUtilities.invokeLater(new StartMenuEngine());
-                gameWindow.dispose();
-            }
-        }
-    }
 }
