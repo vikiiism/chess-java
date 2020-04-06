@@ -36,7 +36,7 @@ public abstract class Piece {
             else fin.capture(this);
         }
 
-        currentSquare.removePiece();
+        Piece removedPiece = currentSquare.removePiece();
         this.currentSquare = fin;
         currentSquare.put(this);
         return true;

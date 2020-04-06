@@ -23,11 +23,15 @@ public class Rook extends Piece {
         int[] occupations = getLinearOccupations(board, x, y);
 
         for (int i = occupations[0]; i <= occupations[1]; i++) {
-            if (i != y) legalMoves.add(board[i][x]);
+            if (i != y) {
+                legalMoves.add(board[i][x]);
+            }
         }
 
         for (int i = occupations[2]; i <= occupations[3]; i++) {
-            if (i != x) legalMoves.add(board[y][i]);
+            if (i != x) {
+                legalMoves.add(board[y][i]);
+            }
         }
 
         return legalMoves;

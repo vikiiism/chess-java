@@ -21,21 +21,27 @@ public class King extends Piece {
         int x = this.getPosition().getXCoordinate();
         int y = this.getPosition().getYCoordinate();
 
+
         for (int i = 1; i > -2; i--) {
             for (int k = 1; k > -2; k--) {
-                if (!(i == 0 && k == 0)) {
+
+                if (i == 0 && k == 0) {
+                    continue;
+                }
+
+                if (!board[y + k][x + i].isOccupied() || board[y + k][x + i].getOccupyingPiece().getCOLOR() !=
+                        this.getCOLOR()) {
+
                     try {
-                        if (!board[y + k][x + i].isOccupied() ||
-                                board[y + k][x + i].getOccupyingPiece().getCOLOR()
-                                        != this.getCOLOR()) {
-                            legalMoves.add(board[y + k][x + i]);
-                        }
-                    } catch (ArrayIndexOutOfBoundsException e) {
+                        legalMoves.add(board[y + k][x + i]);
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
+
             }
         }
+
 
         return legalMoves;
     }

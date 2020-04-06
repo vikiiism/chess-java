@@ -57,16 +57,22 @@ public class Square extends JComponent {
     }
 
     public Piece removePiece() {
-        Piece p = this.occupyingPiece;
+        Piece occupyingPiece = this.occupyingPiece;
         this.occupyingPiece = null;
-        return p;
+        return occupyingPiece;
     }
 
-    public void capture(Piece p) {
-        Piece k = getOccupyingPiece();
-        if (k.getCOLOR() == 0) board.blackPieces.remove(k);
-        if (k.getCOLOR() == 1) board.whitePieces.remove(k);
-        this.occupyingPiece = p;
+    public void capture(Piece piece) {
+
+        Piece occupyingPiece = getOccupyingPiece();
+
+        if (occupyingPiece.getCOLOR() == 0) {
+            board.blackPieces.remove(occupyingPiece);
+        } else if (occupyingPiece.getCOLOR() == 1) {
+            board.whitePieces.remove(occupyingPiece);
+        }
+
+        this.occupyingPiece = piece;
     }
 
     public void paintComponent(Graphics graphics) {

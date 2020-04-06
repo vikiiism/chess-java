@@ -54,9 +54,7 @@ public class Pawn extends Piece {
                     legalMoves.add(board[y + 1][x - 1]);
                 }
             }
-        }
-
-        if (c == 1) {
+        } else if (c == 1) {
             if (!wasMoved) {
                 if (!board[y - 2][x].isOccupied()) {
                     legalMoves.add(board[y - 2][x]);
