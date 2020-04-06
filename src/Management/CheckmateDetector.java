@@ -5,11 +5,7 @@ import Pieces.King;
 import Pieces.Piece;
 import Pieces.Queen;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 
@@ -23,11 +19,12 @@ public class CheckmateDetector {
     private LinkedList<Piece> whitePieces;
     private LinkedList<Piece> blackPieces;
     private LinkedList<Square> movableSquares;
-    private final LinkedList<Square> squares;
     private King blackKing;
     private King whiteKing;
     private HashMap<Square, List<Piece>> whiteMoves;
     private HashMap<Square, List<Piece>> blackMoves;
+    private final LinkedList<Square> SQUARES;
+
 
     /**
      * Constructs a new instance of Management.CheckmateDetector on a given board. By
@@ -48,21 +45,11 @@ public class CheckmateDetector {
         this.whiteKing = whiteKing;
 
         // Initialize other fields
-        squares = new LinkedList<>();
+        SQUARES = new LinkedList<>();
         movableSquares = new LinkedList<>();
         whiteMoves = new HashMap<>();
         blackMoves = new HashMap<>();
-
-        Square[][] currentBoard = board.getBoard();
-
-        // add all squares to squares list and as hashmap keys
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                squares.add(currentBoard[y][x]);
-                whiteMoves.put(currentBoard[y][x], new LinkedList<>());
-                blackMoves.put(currentBoard[y][x], new LinkedList<>());
-            }
-        }
+        initializeBoard(board);
 
         // update situation
         update();
@@ -78,49 +65,18 @@ public class CheckmateDetector {
 
         // empty moves and movable squares at each update
         for (List<Piece> pieces : whiteMoves.values()) {
-            pieces.removeAll(pieces);
+            pieces.removeAll(Collections.unmodifiableList(pieces));
         }
 
         for (List<Piece> pieces : blackMoves.values()) {
-            pieces.removeAll(pieces);
+            pieces.removeAll(Collections.unmodifiableList(pieces));
         }
 
-        movableSquares.removeAll(movableSquares);
+        movableSquares.removeAll(Collections.unmodifiableList(movableSquares));
 
         // Add each move white and black can make to map
-        while (whiteIterator.hasNext()) {
-            Piece piece = whiteIterator.next();
-
-            if (!piece.getClass().equals(King.class)) {
-                if (piece.getPosition() == null) {
-                    whiteIterator.remove();
-                    continue;
-                }
-
-                List<Square> moves = piece.getLegalMoves(board);
-                for (Square move : moves) {
-                    List<Piece> pieces = whiteMoves.get(move);
-                    pieces.add(piece);
-                }
-            }
-        }
-
-        while (blackIterator.hasNext()) {
-            Piece piece = blackIterator.next();
-
-            if (!piece.getClass().equals(King.class)) {
-                if (piece.getPosition() == null) {
-                    whiteIterator.remove();
-                    continue;
-                }
-
-                List<Square> moves = piece.getLegalMoves(board);
-                for (Square move : moves) {
-                    List<Piece> pieces = blackMoves.get(move);
-                    pieces.add(piece);
-                }
-            }
-        }
+        iterateAvailability(whiteIterator);
+        iterateAvailability(blackIterator);
     }
 
     /**
@@ -130,11 +86,14 @@ public class CheckmateDetector {
      */
     public boolean blackInCheck() {
         update();
+
         Square position = blackKing.getPosition();
-        if (whiteMoves.get(position).isEmpty()) {
-            movableSquares.addAll(squares);
-            return false;
-        } else return true;
+        if (!whiteMoves.get(position).isEmpty()) {
+            return true;
+        }
+
+        movableSquares.addAll(SQUARES);
+        return false;
     }
 
     /**
@@ -144,11 +103,14 @@ public class CheckmateDetector {
      */
     public boolean whiteInCheck() {
         update();
+
         Square position = whiteKing.getPosition();
-        if (blackMoves.get(position).isEmpty()) {
-            movableSquares.addAll(squares);
-            return false;
-        } else return true;
+        if (!blackMoves.get(position).isEmpty()) {
+            return true;
+        }
+
+        movableSquares.addAll(SQUARES);
+        return false;
     }
 
     /**
@@ -158,7 +120,9 @@ public class CheckmateDetector {
      */
     public boolean blackCheckMated() {
         // Check if black is in check
-        if (!this.blackInCheck()) return false;
+        if (!this.blackInCheck()) {
+            return false;
+        }
 
         // If yes, check if king can evade
         boolean isCheckmate = true;
@@ -188,7 +152,9 @@ public class CheckmateDetector {
      */
     public boolean whiteCheckMated() {
         // Check if white is in check
-        if (!this.whiteInCheck()) return false;
+        if (!this.whiteInCheck()) {
+            return false;
+        }
 
         // If yes, check if king can evade
         boolean isCheckmate = true;
@@ -221,7 +187,7 @@ public class CheckmateDetector {
      * @return List of squares that the player can move into.
      */
     public List<Square> getAllowableSquares(boolean b) {
-        movableSquares.removeAll(movableSquares);
+        movableSquares.removeAll(Collections.unmodifiableList(movableSquares));
 
         if (whiteInCheck()) {
             whiteCheckMated();
@@ -260,7 +226,7 @@ public class CheckmateDetector {
 
         update();
 
-        movableSquares.addAll(squares);
+        movableSquares.addAll(SQUARES);
         return isMovable;
     }
 
@@ -284,32 +250,48 @@ public class CheckmateDetector {
         return isEvade;
     }
 
+    private void initializeBoard(Board board) {
+        Square[][] currentBoard = board.getBoard();
+
+        // add all squares to squares list and as hashmap keys
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                SQUARES.add(currentBoard[y][x]);
+                whiteMoves.put(currentBoard[y][x], new LinkedList<>());
+                blackMoves.put(currentBoard[y][x], new LinkedList<>());
+            }
+        }
+    }
+
     /*
      * Helper method to determine if the threatening piece can be captured.
      */
     private boolean canCapture(Map<Square, List<Piece>> positions, List<Piece> threats, King king) {
 
+        if (threats.size() != 1) {
+            return false;
+        }
+
         boolean isCaptured = false;
-        if (threats.size() == 1) {
-            Square position = threats.get(0).getPosition();
+        Square position = threats.get(0).getPosition();
 
-            if (king.getLegalMoves(board).contains(position)) {
-                movableSquares.add(position);
-                if (testMove(king, position)) {
-                    isCaptured = true;
-                }
+        if (king.getLegalMoves(board).contains(position)) {
+            movableSquares.add(position);
+            if (testMove(king, position)) {
+                isCaptured = true;
             }
+        }
 
-            List<Piece> caps = positions.get(position);
-            ConcurrentLinkedDeque<Piece> captures = new ConcurrentLinkedDeque<>(caps);
+        ConcurrentLinkedDeque<Piece> captures = new ConcurrentLinkedDeque<>(positions.get(position));
 
-            if (!captures.isEmpty()) {
-                movableSquares.add(position);
-                for (Piece p : captures) {
-                    if (testMove(p, position)) {
-                        isCaptured = true;
-                    }
-                }
+        if (captures.isEmpty()) {
+            return isCaptured;
+        }
+
+        movableSquares.add(position);
+        for (Piece p : captures) {
+            if (testMove(p, position)) {
+                isCaptured = true;
             }
         }
 
@@ -330,142 +312,121 @@ public class CheckmateDetector {
         Square kingPosition = king.getPosition();
         Square[][] boardArray = board.getBoard();
 
+        int max = 0, min = 0, currentPosition = 0;
+        boolean isY = false;
+
         if (kingPosition.getXCoordinate() == threatsPosition.getXCoordinate()) {
-            int max = Math.max(kingPosition.getYCoordinate(), threatsPosition.getYCoordinate());
-            int min = Math.min(kingPosition.getYCoordinate(), threatsPosition.getYCoordinate());
-
-            for (int i = min + 1; i < max; i++) {
-                List<Piece> blocks = blockMoves.get(boardArray[i][kingPosition.getXCoordinate()]);
-                ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
-
-                if (blockers.isEmpty()) {
-                    continue;
-                }
-                movableSquares.add(boardArray[i][kingPosition.getXCoordinate()]);
-
-                for (Piece p : blockers) {
-                    if (testMove(p, boardArray[i][kingPosition.getXCoordinate()])) {
-                        isBlockable = true;
-                    }
-
-
-                }
-            }
+            max = Math.max(kingPosition.getYCoordinate(), threatsPosition.getYCoordinate());
+            min = Math.min(kingPosition.getYCoordinate(), threatsPosition.getYCoordinate());
+            currentPosition = kingPosition.getXCoordinate();
+            isY = false;
+        } else if (kingPosition.getYCoordinate() == threatsPosition.getYCoordinate()) {
+            max = Math.max(kingPosition.getXCoordinate(), threatsPosition.getXCoordinate());
+            min = Math.min(kingPosition.getXCoordinate(), threatsPosition.getXCoordinate());
+            currentPosition = kingPosition.getYCoordinate();
+            isY = true;
         }
-
-        if (kingPosition.getYCoordinate() == threatsPosition.getYCoordinate()) {
-            int max = Math.max(kingPosition.getXCoordinate(), threatsPosition.getXCoordinate());
-            int min = Math.min(kingPosition.getXCoordinate(), threatsPosition.getXCoordinate());
-
-            for (int i = min + 1; i < max; i++) {
-                List<Piece> blocks = blockMoves.get(boardArray[kingPosition.getYCoordinate()][i]);
-                ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
-
-                if (blockers.isEmpty()) {
-                    continue;
-                }
-                movableSquares.add(boardArray[i][kingPosition.getXCoordinate()]);
-
-                for (Piece p : blockers) {
-                    if (testMove(p, boardArray[i][kingPosition.getXCoordinate()])) {
-                        isBlockable = true;
-                    }
-
-
-                }
-            }
-        }
+        isBlockable = fillBlockable(blockMoves, kingPosition, boardArray, max, min, currentPosition, isY);
 
         Class<? extends Piece> threatClass = threats.get(0).getClass();
-
         if (threatClass.equals(Queen.class) || threatClass.equals(Bishop.class)) {
             int kingX = kingPosition.getXCoordinate();
             int kingY = kingPosition.getYCoordinate();
             int threatX = threatsPosition.getXCoordinate();
             int threatY = threatsPosition.getYCoordinate();
+            int increase = 0;
+            int startIndex = 0;
+            int endIndex = 0;
 
-            if (kingX > threatX && kingY > threatY) {
-                for (int i = threatX + 1; i < kingX; i++) {
-
-                    threatY++;
-                    List<Piece> blocks = blockMoves.get(boardArray[threatY][i]);
-
-                    ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
-                    if (blockers.isEmpty()) {
-                        continue;
-                    }
-
-                    movableSquares.add(boardArray[threatY][i]);
-
-                    for (Piece p : blockers) {
-                        if (testMove(p, boardArray[threatY][i])) {
-                            isBlockable = true;
-                        }
-                    }
-
-                }
+            if (kingY > threatY) {
+                increase = 1;
+            } else if (kingY < threatY) {
+                increase = -1;
             }
 
-            if (kingX > threatX && threatY > kingY) {
-                for (int i = threatX + 1; i < kingX; i++) {
-                    threatY--;
-                    List<Piece> blocks = blockMoves.get(boardArray[threatY][i]);
-                    ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
+            if (kingX > threatX) {
+                startIndex = threatX + 1;
+                endIndex = kingX;
 
-                    if (blockers.isEmpty()) {
-                        continue;
-                    }
-
-                    movableSquares.add(boardArray[threatY][i]);
-
-                    for (Piece p : blockers) {
-                        if (testMove(p, boardArray[threatY][i])) {
-                            isBlockable = true;
-                        }
-                    }
-                }
+            } else if (kingX < threatX) {
+                startIndex = kingX + 1;
+                endIndex = threatX;
             }
 
-            if (threatX > kingX && kingY > threatY) {
-                for (int i = threatX - 1; i > kingX; i--) {
-                    threatY++;
-                    List<Piece> blocks = blockMoves.get(boardArray[threatY][i]);
-                    ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
+            for (int i = startIndex; i < endIndex; i++) {
+                threatY += increase;
+                List<Piece> blocks = blockMoves.get(boardArray[threatY][i]);
 
-                    if (!blockers.isEmpty()) {
-                        movableSquares.add(boardArray[threatY][i]);
+                ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
+                if (blockers.isEmpty()) {
+                    continue;
+                }
 
-                        for (Piece p : blockers) {
-                            if (testMove(p, boardArray[threatY][i])) {
-                                isBlockable = true;
-                            }
-                        }
+                movableSquares.add(boardArray[threatY][i]);
+
+                for (Piece p : blockers) {
+                    if (testMove(p, boardArray[threatY][i])) {
+                        isBlockable = true;
                     }
                 }
+
             }
 
-            if (threatX > kingX && threatY > kingY) {
-                for (int i = threatX - 1; i > kingX; i--) {
-                    threatY--;
-                    List<Piece> blocks = blockMoves.get(boardArray[threatY][i]);
-                    ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
-
-                    if (blockers.isEmpty()) {
-                        continue;
-                    }
-
-                    movableSquares.add(boardArray[threatY][i]);
-
-                    for (Piece p : blockers) {
-                        if (testMove(p, boardArray[threatY][i])) {
-                            isBlockable = true;
-                        }
-                    }
-                }
-            }
         }
 
         return isBlockable;
     }
 
+    private boolean fillBlockable(Map<Square, List<Piece>> blockMoves, Square kingPosition, Square[][] boardArray, int max, int min, int currentPosition, boolean isY) {
+        boolean isTheBoardBlockable = false;
+        for (int i = min + 1; i < max; i++) {
+
+            List<Piece> blocks;
+            if (isY) {
+                blocks = blockMoves.get(boardArray[currentPosition][i]);
+            } else {
+                blocks = blockMoves.get(boardArray[i][currentPosition]);
+            }
+            ConcurrentLinkedDeque<Piece> blockers = new ConcurrentLinkedDeque<>(blocks);
+
+            if (blockers.isEmpty()) {
+                continue;
+            }
+            movableSquares.add(boardArray[i][kingPosition.getXCoordinate()]);
+
+            for (Piece p : blockers) {
+                if (testMove(p, boardArray[i][kingPosition.getXCoordinate()])) {
+                    isTheBoardBlockable = true;
+                }
+            }
+        }
+        return isTheBoardBlockable;
+    }
+
+    /*
+     *
+     * Helper method to add each move can make to map
+     * */
+
+    private void iterateAvailability(Iterator<Piece> whiteIterator) {
+        while (whiteIterator.hasNext()) {
+            Piece piece = whiteIterator.next();
+
+            if (piece.getClass().equals(King.class)) {
+                continue;
+            }
+
+            if (piece.getPosition() == null) {
+                whiteIterator.remove();
+                continue;
+            }
+
+            List<Square> moves = piece.getLegalMoves(board);
+            for (Square move : moves) {
+                List<Piece> pieces = whiteMoves.get(move);
+                pieces.add(piece);
+            }
+
+        }
+    }
 }
